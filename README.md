@@ -48,7 +48,6 @@ template/
 ├── .prettierrc             # Prettier config
 ├── tsconfig.json           # TypeScript config
 ├── package.json            # Dependencies + scripts
-└── docker-compose.yml      # Redis + dev setup
 ```
 
 ---
@@ -57,6 +56,7 @@ template/
 
 ```bash
 npm run dev      # Dev server with hot reload (tsx watch)
+npm run main     # Run server (production mode)
 ```
 
 ---
