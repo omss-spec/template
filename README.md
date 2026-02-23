@@ -67,15 +67,15 @@ npm run main     # Run server (production mode)
 
 ```ts
 // src/providers/my-site.ts
-import { BaseProvider } from '@omss/framework';
+import { BaseProvider } from "@omss/framework";
 
 export class MySiteProvider extends BaseProvider {
-    readonly id = 'my-site';
-    readonly name = 'My Site';
-    readonly BASE_URL = 'https://my-site.com';
-    readonly capabilities = { supportedContentTypes: ['movies', 'tv'] };
+  readonly id = "my-site";
+  readonly name = "My Site";
+  readonly BASE_URL = "https://my-site.com";
+  readonly capabilities = { supportedContentTypes: ["movies", "tv"] };
 
-    // Implement getMovieSources() & getTVSources()
+  // Implement getMovieSources() & getTVSources()
 }
 ```
 
@@ -111,29 +111,138 @@ REDIS_PASSWORD=
 
 ---
 
-## 🚀 Production Deployment
+## 🐳 Docker Deployment
 
-### Docker Compose (dev/prod)
+### Quick Start with Docker
+
+#### Option 1: Docker Compose (Recommended for Production)
+
+**Includes Redis cache for optimal performance**
 
 ```bash
-# Start Redis + server
+# 1. Create .env file
+cp .env.example .env
+# Edit .env and add your TMDB_API_KEY
+
+# 2. Start services (backend + Redis)
 docker-compose up -d
 
-# Or just Redis
-docker-compose up redis -d
-npm run start
+# 3. View logs
+docker-compose logs -f omss-backend
+
+# Server running at http://localhost:3000
 ```
 
-### Docker (single container)
+#### Option 2: Standalone Docker (Memory Cache)
 
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY dist/ ./
-EXPOSE 3000
-CMD ["node", "server.js"]
+```bash
+# 1. Build the image
+docker build -t omss-backend:latest .
+
+# 2. Run container
+docker run -p 3000:3000 \
+  -e TMDB_API_KEY=your_tmdb_api_key_here \
+  -e CACHE_TYPE=memory \
+  omss-backend:latest
+
+# Server running at http://localhost:3000
+```
+
+### Docker Configuration
+
+#### Build Arguments
+
+Customize the build with `--build-arg`:
+
+```bash
+docker build \
+  --build-arg NODE_ENV=production \
+  --build-arg PORT=8080 \
+  --build-arg CACHE_TYPE=memory \
+  -t omss-backend:latest .
+```
+
+#### Runtime Environment Variables
+
+All `.env` variables can be overridden at runtime:
+
+```bash
+docker run -p 3000:3000 \
+  -e TMDB_API_KEY=your_key \
+  -e TMDB_CACHE_TTL=86400 \
+  -e CACHE_TYPE=redis \
+  -e REDIS_HOST=redis.example.com \
+  -e REDIS_PORT=6379 \
+  -e REDIS_PASSWORD=your_password \
+  -e PORT=3000 \
+  -e HOST=0.0.0.0 \
+  -e PUBLIC_URL=https://api.yourdomain.com \
+  omss-backend:latest
+```
+
+### Docker Compose Services
+
+The `docker-compose.yml` includes:
+
+- **omss-backend**: Your OMSS streaming backend
+- **redis**: Redis cache (persistent storage)
+
+#### Customizing docker-compose.yml
+
+```yaml
+# Change exposed port
+ports:
+  - "8080:3000" # Access on port 8080
+
+# Add Redis password
+redis:
+  command: redis-server --requirepass yourpassword
+
+# Then update backend environment
+environment:
+  - REDIS_PASSWORD=yourpassword
+```
+
+### Production Deployment Tips
+
+1. **Use Redis cache** for better performance:
+
+   ```yaml
+   environment:
+     - CACHE_TYPE=redis
+     - REDIS_HOST=redis
+   ```
+
+2. **Set PUBLIC_URL** if behind reverse proxy:
+
+   ```yaml
+   environment:
+     - PUBLIC_URL=https://api.yourdomain.com
+   ```
+
+3. **Persistent data** is stored in Docker volume `redis-data`
+
+4. **Health checks**: Access `http://localhost:3000/` to verify
+
+### Troubleshooting Docker
+
+**Port already in use:**
+
+```bash
+# Change port in docker-compose.yml
+ports:
+  - "3001:3000"
+```
+
+**Providers not loading:**
+Ensure your `src/server.ts` uses the correct path:
+
+```typescript
+registry.discoverProviders(
+  process.env.NODE_ENV === "production"
+    ? "./dist/providers"
+    : "./src/providers",
+);
 ```
 
 ---
